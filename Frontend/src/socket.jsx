@@ -21,9 +21,11 @@ const url =
   "http://localhost:5000";
 
 const socket = io(url, {
-  transports: ["websocket", "polling"], // Ensure compatibility
+  transports: ["websocket"], // Prefer WebSocket for lower latency
   reconnection: true,
-  withCredentials: true, // Ensure CORS works
+  reconnectionAttempts: 10,
+  reconnectionDelay: 1000,
+  withCredentials: true,
 });
 
 const VideoChat = () => {
@@ -39,9 +41,11 @@ const VideoChat = () => {
     const pc = peerConnections.current;
 
     socket.on("user-joined", async (userId) => {
-      // console.log(👤 ${userId} joined, creating peer connection...);
       if (!pc[userId]) {
         pc[userId] = createPeerConnection(userId);
+      } else if (pc[userId].signalingState !== "stable") {
+        console.warn(`Peer connection with ${userId} already in progress.`);
+        return;
       }
       try {
         const offer = await pc[userId].createOffer();
@@ -53,10 +57,12 @@ const VideoChat = () => {
     });
 
     socket.on("existing-users", async (users) => {
-      // console.log("Existing users:", users);
       for (const userId of users) {
         if (!pc[userId]) {
           pc[userId] = createPeerConnection(userId);
+        } else if (pc[userId].signalingState !== "stable") {
+          console.warn(`Peer connection with ${userId} already in progress.`);
+          continue;
         }
         try {
           const offer = await pc[userId].createOffer();
@@ -69,74 +75,64 @@ const VideoChat = () => {
     });
 
     socket.on("offer", async ({ sender, offer }) => {
-      console.log(`📩 Offer received from ${sender}`);
-
       if (!pc[sender]) {
         pc[sender] = createPeerConnection(sender);
       }
-
-      const peerConnection = pc[sender];
-
-      if (peerConnection.signalingState !== "stable") {
-        console.warn("Skipping offer: PeerConnection is not in a stable state");
-        return;
-      }
-
       try {
-        await peerConnection.setRemoteDescription(
-          new RTCSessionDescription(offer)
-        );
-        const answer = await peerConnection.createAnswer();
-        await peerConnection.setLocalDescription(answer);
-        socket.emit("answer", { roomId, answer, sender: socket.id });
+        if (pc[sender].signalingState === "stable") {
+          await pc[sender].setRemoteDescription(
+            new RTCSessionDescription(offer)
+          );
+          const answer = await pc[sender].createAnswer();
+          await pc[sender].setLocalDescription(answer);
+          socket.emit("answer", { roomId, answer, sender: socket.id });
+        } else {
+          console.warn(
+            `Ignoring offer from ${sender} in state: ${pc[sender].signalingState}`
+          );
+        }
       } catch (err) {
         console.error("Error handling offer:", err);
       }
     });
 
     socket.on("answer", async ({ sender, answer }) => {
-      console.log(`✅ Answer received from ${sender}`);
-
-      const peerConnection = pc[sender];
-      if (!peerConnection) return;
-
-      if (peerConnection.signalingState !== "have-local-offer") {
-        console.warn(
-          "Skipping answer: PeerConnection is not in have-local-offer state"
-        );
-        return;
-      }
-
-      try {
-        await peerConnection.setRemoteDescription(
-          new RTCSessionDescription(answer)
-        );
-      } catch (err) {
-        console.error("Error setting remote description:", err);
+      if (pc[sender]) {
+        try {
+          const currentState = pc[sender].signalingState;
+          if (currentState === "have-local-offer") {
+            await pc[sender].setRemoteDescription(
+              new RTCSessionDescription(answer)
+            );
+          } else {
+            console.warn(`Cannot set remote answer in state: ${currentState}`);
+          }
+        } catch (err) {
+          console.error("Error setting remote description:", err);
+        }
       }
     });
 
-    socket.on("ice-candidate", ({ sender, candidate }) => {
+    socket.on("ice-candidate", async ({ sender, candidate }) => {
       if (pc[sender]) {
         try {
-          pc[sender].addIceCandidate(new RTCIceCandidate(candidate));
+          if (pc[sender].remoteDescription) {
+            await pc[sender].addIceCandidate(new RTCIceCandidate(candidate));
+          } else {
+            pc[sender].iceCandidateBuffer.push(candidate);
+          }
         } catch (err) {
           console.error("Error adding ICE candidate:", err);
         }
       }
     });
+
     socket.on("user-left", (userId) => {
-      console.log(`User left: ${userId}`);
-
-      // Close peer connection
-      if (peerConnections.current[userId]) {
-        peerConnections.current[userId].close();
-        delete peerConnections.current[userId];
+      if (pc[userId]) {
+        pc[userId].close();
+        delete pc[userId];
       }
-
-      // Remove from remote streams
       setRemoteStreams((prev) => prev.filter((stream) => stream.id !== userId));
-
       toast({
         title: "Participant left",
         description: `User ${userId.substring(0, 5)}... has left`,
@@ -147,9 +143,7 @@ const VideoChat = () => {
     });
 
     return () => {
-      Object.values(pc).forEach((connection) => {
-        connection.close();
-      });
+      Object.values(pc).forEach((connection) => connection.close());
       socket.off("user-joined");
       socket.off("existing-users");
       socket.off("offer");
@@ -171,7 +165,14 @@ const VideoChat = () => {
       }
       return stream;
     } catch (error) {
-      console.error(" Error accessing media devices.", error);
+      console.error("Error accessing media devices:", error);
+      toast({
+        title: "Media Error",
+        description: "Could not access camera or microphone.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
     }
   };
 
@@ -179,8 +180,18 @@ const VideoChat = () => {
     if (peerConnections.current[userId]) return peerConnections.current[userId];
 
     const peerConnection = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+        // Add a TURN server for production reliability (example):
+        // {
+        //   urls: "turn:your-turn-server.com:3478",
+        //   username: "your-username",
+        //   credential: "your-password",
+        // },
+      ],
     });
+
+    peerConnection.iceCandidateBuffer = []; // Buffer for ICE candidates
 
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => {
@@ -199,7 +210,6 @@ const VideoChat = () => {
     };
 
     peerConnection.ontrack = (event) => {
-      // console.log("Received track event from:", userId);
       setRemoteStreams((prevStreams) => {
         const existingStream = prevStreams.find((s) => s.id === userId);
         if (!existingStream) {
@@ -213,18 +223,15 @@ const VideoChat = () => {
       });
     };
 
-    peerConnection.onconnectionstatechange = () => {
-      // console.log(
-      //   Connection state with ${userId}:,
-      //   peerConnection.connectionState
-      // );
-    };
-
-    peerConnection.oniceconnectionstatechange = () => {
-      // console.log(
-      //   ICE connection state with ${userId}:,
-      //   peerConnection.iceConnectionState
-      // );
+    // Apply buffered ICE candidates after setting remote description
+    const originalSetRemoteDescription = peerConnection.setRemoteDescription;
+    peerConnection.setRemoteDescription = async function (description) {
+      await originalSetRemoteDescription.apply(this, [description]);
+      while (this.iceCandidateBuffer.length) {
+        await this.addIceCandidate(
+          new RTCIceCandidate(this.iceCandidateBuffer.shift())
+        );
+      }
     };
 
     peerConnections.current[userId] = peerConnection;
@@ -288,7 +295,6 @@ const VideoChat = () => {
   };
 
   return (
-    // return (
     <Box minH="100vh" bg="gray.50" p={6}>
       {!joined ? (
         <Box
