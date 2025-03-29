@@ -16,9 +16,14 @@ import {
 import io from "socket.io-client";
 import { v4 as uuidv4 } from "uuid";
 
-const socket = io(import.meta.env.VITE_API_BASE_URL, {
-  transports: ["websocket"],
+const url =
+  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ||
+  "http://localhost:5000";
+
+const socket = io(url, {
+  transports: ["websocket", "polling"], // Ensure compatibility
   reconnection: true,
+  withCredentials: true, // Ensure CORS works
 });
 
 const VideoChat = () => {

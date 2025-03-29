@@ -26,7 +26,6 @@ export default function Login() {
   });
 
   const [emailError, setEmailError] = useState("");
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -57,7 +56,14 @@ export default function Login() {
     }
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/login`, formData);
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(
+        /\/$/,
+        ""
+      );
+
+      const response = await axios.post(`${API_BASE_URL}/login`, formData, {
+        withCredentials: true, // Ensure cookies are sent
+      });
       if (response.data.token) {
         localStorage.setItem("token", response.data.token); // Store token in localStorage
       } else {

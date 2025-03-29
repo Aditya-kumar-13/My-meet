@@ -8,9 +8,13 @@ const router = require("./routes/user");
 const dotenv = require("dotenv");
 dotenv.config();
 connectDB();
+const allowedOrigins = [
+  "http://localhost:5173", // Local frontend
+  "https://my-meet-nine.vercel.app", // Deployed frontend
+];
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL,
+    origin: allowedOrigins,
     credentials: true,
   })
 );
@@ -23,7 +27,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL,
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
     credentials: true,
   },
