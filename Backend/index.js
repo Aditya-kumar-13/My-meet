@@ -6,12 +6,15 @@ const connectDB = require("./config/db");
 const http = require("http");
 const router = require("./routes/user");
 const dotenv = require("dotenv");
+
 dotenv.config();
 connectDB();
+
 const allowedOrigins = [
   "http://localhost:5173", // Local frontend
   "https://my-meet-nine.vercel.app", // Deployed frontend
 ];
+
 app.use(
   cors({
     origin: allowedOrigins,
@@ -71,6 +74,7 @@ io.on("connection", (socket) => {
       socket.to(roomId).emit("user-joined", socket.id);
     }, 100);
   });
+
   socket.on("leave-room", (roomId) => {
     if (!rooms.has(roomId)) return;
 
@@ -89,31 +93,45 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("offer", ({ roomId, offer, sender }) => {
+  socket.on("offer", ({ roomId, offer, sender, target }) => {
     if (!rooms.has(roomId) || !rooms.get(roomId).has(sender)) {
       console.warn(`⚠️ Offer from unauthorized sender ${sender}`);
       return;
     }
-    console.log(`📤 Offer from ${sender} → Room: ${roomId}`);
-    socket.to(roomId).emit("offer", { sender, offer });
-  });
-
-  socket.on("answer", ({ roomId, answer, sender }) => {
-    if (!rooms.has(roomId)) {
-      console.warn(`⚠️ Answer for non-existent room ${roomId}`);
+    if (!target || !rooms.get(roomId).has(target)) {
+      console.warn(`⚠️ Offer to invalid target ${target}`);
       return;
     }
-    console.log(`📥 Answer from ${sender} → Room: ${roomId}`);
-    socket.to(roomId).emit("answer", { sender, answer });
+    console.log(`📤 Offer from ${sender} to ${target} → Room: ${roomId}`);
+    socket.to(target).emit("offer", { sender, offer, target });
   });
 
-  socket.on("ice-candidate", ({ roomId, candidate, sender }) => {
-    if (!rooms.has(roomId)) {
-      console.warn(`⚠️ ICE candidate for non-existent room ${roomId}`);
+  socket.on("answer", ({ roomId, answer, sender, target }) => {
+    if (!rooms.has(roomId) || !rooms.get(roomId).has(sender)) {
+      console.warn(`⚠️ Answer from unauthorized sender ${sender}`);
       return;
     }
-    console.log(`❄️ ICE candidate from ${sender} → Room: ${roomId}`);
-    socket.to(roomId).emit("ice-candidate", { sender, candidate });
+    if (!target || !rooms.get(roomId).has(target)) {
+      console.warn(`⚠️ Answer to invalid target ${target}`);
+      return;
+    }
+    console.log(`📥 Answer from ${sender} to ${target} → Room: ${roomId}`);
+    socket.to(target).emit("answer", { sender, answer, target });
+  });
+
+  socket.on("ice-candidate", ({ roomId, candidate, sender, target }) => {
+    if (!rooms.has(roomId) || !rooms.get(roomId).has(sender)) {
+      console.warn(`⚠️ ICE candidate from unauthorized sender ${sender}`);
+      return;
+    }
+    if (!target || !rooms.get(roomId).has(target)) {
+      console.warn(`⚠️ ICE candidate to invalid target ${target}`);
+      return;
+    }
+    console.log(
+      `❄️ ICE candidate from ${sender} to ${target} → Room: ${roomId}`
+    );
+    socket.to(target).emit("ice-candidate", { sender, candidate, target });
   });
 
   socket.on("disconnect", () => {

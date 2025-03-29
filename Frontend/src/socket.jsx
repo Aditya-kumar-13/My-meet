@@ -21,7 +21,7 @@ const url =
   "http://localhost:5000";
 
 const socket = io(url, {
-  transports: ["websocket"], // Prefer WebSocket for lower latency
+  transports: ["websocket"],
   reconnection: true,
   reconnectionAttempts: 10,
   reconnectionDelay: 1000,
@@ -41,40 +41,53 @@ const VideoChat = () => {
     const pc = peerConnections.current;
 
     socket.on("user-joined", async (userId) => {
+      if (userId === socket.id) return; // Ignore self
       if (!pc[userId]) {
         pc[userId] = createPeerConnection(userId);
-      } else if (pc[userId].signalingState !== "stable") {
-        console.warn(`Peer connection with ${userId} already in progress.`);
-        return;
       }
-      try {
-        const offer = await pc[userId].createOffer();
-        await pc[userId].setLocalDescription(offer);
-        socket.emit("offer", { roomId, offer, sender: socket.id });
-      } catch (err) {
-        console.error("Error creating offer:", err);
+      // Only initiate offer if local socket.id is lexicographically smaller
+      if (socket.id < userId && pc[userId].signalingState === "stable") {
+        try {
+          const offer = await pc[userId].createOffer();
+          await pc[userId].setLocalDescription(offer);
+          socket.emit("offer", {
+            roomId,
+            offer,
+            sender: socket.id,
+            target: userId,
+          });
+        } catch (err) {
+          console.error("Error creating offer:", err);
+        }
       }
     });
 
     socket.on("existing-users", async (users) => {
       for (const userId of users) {
+        if (userId === socket.id) continue; // Skip self
         if (!pc[userId]) {
           pc[userId] = createPeerConnection(userId);
-        } else if (pc[userId].signalingState !== "stable") {
-          console.warn(`Peer connection with ${userId} already in progress.`);
-          continue;
         }
-        try {
-          const offer = await pc[userId].createOffer();
-          await pc[userId].setLocalDescription(offer);
-          socket.emit("offer", { roomId, offer, sender: socket.id });
-        } catch (err) {
-          console.error("Error creating offer for existing user:", err);
+        // Only initiate offer if local socket.id is smaller
+        if (socket.id < userId && pc[userId].signalingState === "stable") {
+          try {
+            const offer = await pc[userId].createOffer();
+            await pc[userId].setLocalDescription(offer);
+            socket.emit("offer", {
+              roomId,
+              offer,
+              sender: socket.id,
+              target: userId,
+            });
+          } catch (err) {
+            console.error("Error creating offer for existing user:", err);
+          }
         }
       }
     });
 
-    socket.on("offer", async ({ sender, offer }) => {
+    socket.on("offer", async ({ sender, offer, target }) => {
+      if (target !== socket.id) return; // Ignore if not targeted
       if (!pc[sender]) {
         pc[sender] = createPeerConnection(sender);
       }
@@ -85,7 +98,12 @@ const VideoChat = () => {
           );
           const answer = await pc[sender].createAnswer();
           await pc[sender].setLocalDescription(answer);
-          socket.emit("answer", { roomId, answer, sender: socket.id });
+          socket.emit("answer", {
+            roomId,
+            answer,
+            sender: socket.id,
+            target: sender,
+          });
         } else {
           console.warn(
             `Ignoring offer from ${sender} in state: ${pc[sender].signalingState}`
@@ -96,7 +114,8 @@ const VideoChat = () => {
       }
     });
 
-    socket.on("answer", async ({ sender, answer }) => {
+    socket.on("answer", async ({ sender, answer, target }) => {
+      if (target !== socket.id) return; // Ignore if not targeted
       if (pc[sender]) {
         try {
           const currentState = pc[sender].signalingState;
@@ -105,7 +124,9 @@ const VideoChat = () => {
               new RTCSessionDescription(answer)
             );
           } else {
-            console.warn(`Cannot set remote answer in state: ${currentState}`);
+            console.warn(
+              `Ignoring answer from ${sender} in state: ${currentState}`
+            );
           }
         } catch (err) {
           console.error("Error setting remote description:", err);
@@ -113,7 +134,8 @@ const VideoChat = () => {
       }
     });
 
-    socket.on("ice-candidate", async ({ sender, candidate }) => {
+    socket.on("ice-candidate", async ({ sender, candidate, target }) => {
+      if (target !== socket.id) return; // Ignore if not targeted
       if (pc[sender]) {
         try {
           if (pc[sender].remoteDescription) {
@@ -182,7 +204,7 @@ const VideoChat = () => {
     const peerConnection = new RTCPeerConnection({
       iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
-        // Add a TURN server for production reliability (example):
+        // Uncomment and configure TURN server for production
         // {
         //   urls: "turn:your-turn-server.com:3478",
         //   username: "your-username",
@@ -191,7 +213,7 @@ const VideoChat = () => {
       ],
     });
 
-    peerConnection.iceCandidateBuffer = []; // Buffer for ICE candidates
+    peerConnection.iceCandidateBuffer = [];
 
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => {
@@ -205,6 +227,7 @@ const VideoChat = () => {
           roomId,
           candidate: event.candidate,
           sender: socket.id,
+          target: userId,
         });
       }
     };
@@ -223,7 +246,6 @@ const VideoChat = () => {
       });
     };
 
-    // Apply buffered ICE candidates after setting remote description
     const originalSetRemoteDescription = peerConnection.setRemoteDescription;
     peerConnection.setRemoteDescription = async function (description) {
       await originalSetRemoteDescription.apply(this, [description]);
