@@ -39,7 +39,7 @@ const VideoChat = () => {
     const pc = peerConnections.current;
 
     socket.on("user-joined", async (userId) => {
-      // console.log(`👤 ${userId} joined, creating peer connection...`);
+      // console.log(👤 ${userId} joined, creating peer connection...);
       if (!pc[userId]) {
         pc[userId] = createPeerConnection(userId);
       }
@@ -69,7 +69,7 @@ const VideoChat = () => {
     });
 
     socket.on("offer", async ({ sender, offer }) => {
-      // console.log(`📩 Offer from ${sender}`);
+      // console.log(📩 Offer from ${sender});
       if (!pc[sender]) {
         pc[sender] = createPeerConnection(sender);
       }
@@ -84,7 +84,7 @@ const VideoChat = () => {
     });
 
     socket.on("answer", async ({ sender, answer }) => {
-      // console.log(`✅ Answer from ${sender}`);
+      // console.log(✅ Answer from ${sender});
       if (pc[sender]) {
         try {
           await pc[sender].setRemoteDescription(
@@ -195,14 +195,14 @@ const VideoChat = () => {
 
     peerConnection.onconnectionstatechange = () => {
       // console.log(
-      //   `Connection state with ${userId}:`,
+      //   Connection state with ${userId}:,
       //   peerConnection.connectionState
       // );
     };
 
     peerConnection.oniceconnectionstatechange = () => {
       // console.log(
-      //   `ICE connection state with ${userId}:`,
+      //   ICE connection state with ${userId}:,
       //   peerConnection.iceConnectionState
       // );
     };
