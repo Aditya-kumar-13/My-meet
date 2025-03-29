@@ -69,14 +69,25 @@ const VideoChat = () => {
     });
 
     socket.on("offer", async ({ sender, offer }) => {
-      // console.log(📩 Offer from ${sender});
+      console.log(`📩 Offer received from ${sender}`);
+
       if (!pc[sender]) {
         pc[sender] = createPeerConnection(sender);
       }
+
+      const peerConnection = pc[sender];
+
+      if (peerConnection.signalingState !== "stable") {
+        console.warn("Skipping offer: PeerConnection is not in a stable state");
+        return;
+      }
+
       try {
-        await pc[sender].setRemoteDescription(new RTCSessionDescription(offer));
-        const answer = await pc[sender].createAnswer();
-        await pc[sender].setLocalDescription(answer);
+        await peerConnection.setRemoteDescription(
+          new RTCSessionDescription(offer)
+        );
+        const answer = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answer);
         socket.emit("answer", { roomId, answer, sender: socket.id });
       } catch (err) {
         console.error("Error handling offer:", err);
@@ -84,15 +95,24 @@ const VideoChat = () => {
     });
 
     socket.on("answer", async ({ sender, answer }) => {
-      // console.log(✅ Answer from ${sender});
-      if (pc[sender]) {
-        try {
-          await pc[sender].setRemoteDescription(
-            new RTCSessionDescription(answer)
-          );
-        } catch (err) {
-          console.error("Error setting remote description:", err);
-        }
+      console.log(`✅ Answer received from ${sender}`);
+
+      const peerConnection = pc[sender];
+      if (!peerConnection) return;
+
+      if (peerConnection.signalingState !== "have-local-offer") {
+        console.warn(
+          "Skipping answer: PeerConnection is not in have-local-offer state"
+        );
+        return;
+      }
+
+      try {
+        await peerConnection.setRemoteDescription(
+          new RTCSessionDescription(answer)
+        );
+      } catch (err) {
+        console.error("Error setting remote description:", err);
       }
     });
 
