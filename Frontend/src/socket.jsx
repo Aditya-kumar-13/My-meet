@@ -21,9 +21,9 @@ const url =
   "http://localhost:5000";
 
 const socket = io(url, {
-  transports: ["websocket", "polling"],
+  transports: ["websocket", "polling"], // Ensure compatibility
   reconnection: true,
-  withCredentials: true,
+  withCredentials: true, // Ensure CORS works
 });
 
 const VideoChat = () => {
@@ -39,10 +39,10 @@ const VideoChat = () => {
     const pc = peerConnections.current;
 
     socket.on("user-joined", async (userId) => {
+      // console.log(`👤 ${userId} joined, creating peer connection...`);
       if (!pc[userId]) {
         pc[userId] = createPeerConnection(userId);
       }
-
       try {
         const offer = await pc[userId].createOffer();
         await pc[userId].setLocalDescription(offer);
@@ -53,6 +53,7 @@ const VideoChat = () => {
     });
 
     socket.on("existing-users", async (users) => {
+      // console.log("Existing users:", users);
       for (const userId of users) {
         if (!pc[userId]) {
           pc[userId] = createPeerConnection(userId);
@@ -68,19 +69,11 @@ const VideoChat = () => {
     });
 
     socket.on("offer", async ({ sender, offer }) => {
+      // console.log(`📩 Offer from ${sender}`);
       if (!pc[sender]) {
         pc[sender] = createPeerConnection(sender);
       }
-
       try {
-        // Prevent setting remote description if the signaling state isn't stable
-        if (pc[sender].signalingState !== "stable") {
-          console.warn(
-            `Ignoring offer from ${sender}, signalingState is not stable`
-          );
-          return;
-        }
-
         await pc[sender].setRemoteDescription(new RTCSessionDescription(offer));
         const answer = await pc[sender].createAnswer();
         await pc[sender].setLocalDescription(answer);
@@ -91,18 +84,12 @@ const VideoChat = () => {
     });
 
     socket.on("answer", async ({ sender, answer }) => {
+      // console.log(`✅ Answer from ${sender}`);
       if (pc[sender]) {
         try {
-          // Prevent setting remote description twice
-          if (!pc[sender].remoteDescription) {
-            await pc[sender].setRemoteDescription(
-              new RTCSessionDescription(answer)
-            );
-          } else {
-            console.warn(
-              `Remote description already set for ${sender}, skipping.`
-            );
-          }
+          await pc[sender].setRemoteDescription(
+            new RTCSessionDescription(answer)
+          );
         } catch (err) {
           console.error("Error setting remote description:", err);
         }
@@ -118,15 +105,16 @@ const VideoChat = () => {
         }
       }
     });
-
     socket.on("user-left", (userId) => {
       console.log(`User left: ${userId}`);
 
+      // Close peer connection
       if (peerConnections.current[userId]) {
         peerConnections.current[userId].close();
         delete peerConnections.current[userId];
       }
 
+      // Remove from remote streams
       setRemoteStreams((prev) => prev.filter((stream) => stream.id !== userId));
 
       toast({
@@ -163,7 +151,7 @@ const VideoChat = () => {
       }
       return stream;
     } catch (error) {
-      console.error("Error accessing media devices.", error);
+      console.error(" Error accessing media devices.", error);
     }
   };
 
@@ -191,6 +179,7 @@ const VideoChat = () => {
     };
 
     peerConnection.ontrack = (event) => {
+      // console.log("Received track event from:", userId);
       setRemoteStreams((prevStreams) => {
         const existingStream = prevStreams.find((s) => s.id === userId);
         if (!existingStream) {
@@ -202,6 +191,20 @@ const VideoChat = () => {
             : stream
         );
       });
+    };
+
+    peerConnection.onconnectionstatechange = () => {
+      // console.log(
+      //   `Connection state with ${userId}:`,
+      //   peerConnection.connectionState
+      // );
+    };
+
+    peerConnection.oniceconnectionstatechange = () => {
+      // console.log(
+      //   `ICE connection state with ${userId}:`,
+      //   peerConnection.iceConnectionState
+      // );
     };
 
     peerConnections.current[userId] = peerConnection;
