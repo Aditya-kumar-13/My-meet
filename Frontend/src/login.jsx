@@ -10,6 +10,7 @@ import {
   Text,
   useColorModeValue,
 } from "@chakra-ui/react";
+import { Spinner } from "@chakra-ui/react";
 import validator from "validator";
 import { useToast } from "@chakra-ui/react";
 import { useState } from "react";
@@ -20,6 +21,7 @@ import axios from "axios";
 export default function Login() {
   const navigate = useNavigate();
   const toast = useToast();
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -41,9 +43,11 @@ export default function Login() {
   };
 
   const handleSubmit = async (e) => {
+    setLoading(true);
     e.preventDefault();
 
     if (!validator.isEmail(formData.email)) {
+      setLoading(false);
       toast({
         title: "Invalid Email",
         description: "Please enter a valid email address.",
@@ -69,7 +73,7 @@ export default function Login() {
       } else {
         console.error("No token received from backend.");
       }
-
+      setLoading(false);
       toast({
         title: response.data.message,
         description: "Welcome back!",
@@ -83,6 +87,7 @@ export default function Login() {
       navigate("./dashboard");
     } catch (err) {
       console.log("Login error:", err);
+      setLoading(false);
 
       toast({
         title: err.response?.data?.message || "Error",
@@ -148,6 +153,9 @@ export default function Login() {
               </Stack>
 
               {/* Submit Button */}
+              <Box display={"flex"} justifyContent={"center"}>
+                {loading && <Spinner size="xl" color="blue.500" />}
+              </Box>
               <Button
                 type="submit"
                 bg="blue.400"

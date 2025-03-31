@@ -13,17 +13,20 @@ import {
   Heading,
   Text,
   useColorModeValue,
+  Spinner,
 } from "@chakra-ui/react";
 import { useToast } from "@chakra-ui/react";
 import { useState } from "react";
 import { ViewIcon, ViewOffIcon } from "@chakra-ui/icons";
-import { Link } from "react-router-dom";
+import { Link, redirect, useNavigate } from "react-router-dom";
 import axios from "axios";
 import validator from "validator";
 
 export default function SignupForm() {
   const toast = useToast();
+  const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -46,10 +49,11 @@ export default function SignupForm() {
   };
 
   const handleSubmit = async (e) => {
+    setLoading(true);
     e.preventDefault();
 
-    // **Final email validation before sending request**
     if (!validator.isEmail(formData.email)) {
+      setLoading(false);
       toast({
         title: "Invalid Email",
         description: "Please enter a valid email address.",
@@ -63,20 +67,21 @@ export default function SignupForm() {
 
     try {
       const response = await axios.post(`${API_BASE_URL}/signup`, formData);
-
+      setLoading(false);
       toast({
         title: "Signup Successful",
-        description: "You have successfully registered.",
+        description: "Welcome to My-Meet",
         status: "success",
         duration: 3000,
         isClosable: true,
         position: "top",
       });
+      navigate("/dashboard");
 
       console.log("response:", response);
     } catch (err) {
       console.log("error:", err);
-
+      setLoading(false);
       if (err.response && err.response.status === 400) {
         toast({
           title: "User Already Registered",
@@ -164,7 +169,9 @@ export default function SignupForm() {
                   </InputRightElement>
                 </InputGroup>
               </FormControl>
-
+              <Box display={"flex"} justifyContent={"center"}>
+                {loading && <Spinner size="xl" color="blue.500" />}
+              </Box>
               {/* Submit Button */}
               <Stack spacing={10} pt={2}>
                 <Button

@@ -11,8 +11,8 @@ dotenv.config();
 connectDB();
 
 const allowedOrigins = [
-  "http://localhost:5173", // Local frontend
-  "https://my-meet-nine.vercel.app", // Deployed frontend
+  "http://localhost:5173",
+  "https://my-meet-nine.vercel.app",
 ];
 
 app.use(
@@ -40,7 +40,7 @@ const io = new Server(server, {
 const rooms = new Map();
 
 io.on("connection", (socket) => {
-  console.log(`🔗 New connection: ${socket.id}`);
+  console.log(`New connection: ${socket.id}`);
 
   socket.on("create-room", (roomId) => {
     if (!rooms.has(roomId)) {
@@ -48,13 +48,13 @@ io.on("connection", (socket) => {
     }
     rooms.get(roomId).add(socket.id);
     socket.join(roomId);
-    console.log(`🏠 Room ${roomId} created/joined by ${socket.id}`);
+    console.log(`Room ${roomId} created/joined by ${socket.id}`);
     socket.emit("room-created", roomId);
   });
 
   socket.on("join-room", (roomId) => {
     if (!rooms.has(roomId)) {
-      console.warn(`⚠️ Attempt to join non-existent room ${roomId}`);
+      console.warn(`Attempt to join non-existent room ${roomId}`);
       socket.emit("invalid-room");
       return;
     }
@@ -64,7 +64,7 @@ io.on("connection", (socket) => {
     socket.join(roomId);
 
     console.log(
-      `📞 ${socket.id} joined ${roomId} (Total users: ${roomUsers.size})`
+      `${socket.id} joined ${roomId} (Total users: ${roomUsers.size})`
     );
 
     const others = Array.from(roomUsers).filter((id) => id !== socket.id);
@@ -80,52 +80,50 @@ io.on("connection", (socket) => {
 
     const roomUsers = rooms.get(roomId);
     if (roomUsers.delete(socket.id)) {
-      console.log(
-        `🚪 ${socket.id} left ${roomId} (Remaining: ${roomUsers.size})`
-      );
+      console.log(`{socket.id} left ${roomId} (Remaining: ${roomUsers.size})`);
       socket.to(roomId).emit("user-left", socket.id);
       socket.leave(roomId);
 
       if (roomUsers.size === 0) {
         rooms.delete(roomId);
-        console.log(`🧹 Cleaned up empty room ${roomId}`);
+        console.log(`Cleaned up empty room ${roomId}`);
       }
     }
   });
 
   socket.on("offer", ({ roomId, offer, sender, target }) => {
     if (!rooms.has(roomId) || !rooms.get(roomId).has(sender)) {
-      console.warn(`⚠️ Offer from unauthorized sender ${sender}`);
+      console.warn(`Offer from unauthorized sender ${sender}`);
       return;
     }
     if (!target || !rooms.get(roomId).has(target)) {
-      console.warn(`⚠️ Offer to invalid target ${target}`);
+      console.warn(`Offer to invalid target ${target}`);
       return;
     }
-    console.log(`📤 Offer from ${sender} to ${target} → Room: ${roomId}`);
+    console.log(`Offer from ${sender} to ${target} → Room: ${roomId}`);
     socket.to(target).emit("offer", { sender, offer, target });
   });
 
   socket.on("answer", ({ roomId, answer, sender, target }) => {
     if (!rooms.has(roomId) || !rooms.get(roomId).has(sender)) {
-      console.warn(`⚠️ Answer from unauthorized sender ${sender}`);
+      console.warn(`Answer from unauthorized sender ${sender}`);
       return;
     }
     if (!target || !rooms.get(roomId).has(target)) {
-      console.warn(`⚠️ Answer to invalid target ${target}`);
+      console.warn(`Answer to invalid target ${target}`);
       return;
     }
-    console.log(`📥 Answer from ${sender} to ${target} → Room: ${roomId}`);
+    console.log(`Answer from ${sender} to ${target} → Room: ${roomId}`);
     socket.to(target).emit("answer", { sender, answer, target });
   });
 
   socket.on("ice-candidate", ({ roomId, candidate, sender, target }) => {
     if (!rooms.has(roomId) || !rooms.get(roomId).has(sender)) {
-      console.warn(`⚠️ ICE candidate from unauthorized sender ${sender}`);
+      console.warn(`ICE candidate from unauthorized sender ${sender}`);
       return;
     }
     if (!target || !rooms.get(roomId).has(target)) {
-      console.warn(`⚠️ ICE candidate to invalid target ${target}`);
+      console.warn(`ICE candidate to invalid target ${target}`);
       return;
     }
     console.log(
@@ -135,25 +133,23 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
-    console.log(`❌ Disconnected: ${socket.id}`);
+    console.log(`Disconnected: ${socket.id}`);
 
     rooms.forEach((users, roomId) => {
       if (users.delete(socket.id)) {
-        console.log(
-          `🚪 ${socket.id} left ${roomId} (Remaining: ${users.size})`
-        );
+        console.log(`${socket.id} left ${roomId} (Remaining: ${users.size})`);
         socket.to(roomId).emit("user-left", socket.id);
 
         if (users.size === 0) {
           rooms.delete(roomId);
-          console.log(`🧹 Cleaned up empty room ${roomId}`);
+          console.log(`Cleaned up empty room ${roomId}`);
         }
       }
     });
   });
 
   socket.on("error", (err) => {
-    console.error(`⚠️ Socket error (${socket.id}):`, err);
+    console.error(`Socket error (${socket.id}):`, err);
   });
 });
 
@@ -166,7 +162,7 @@ app.get("/health", (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
 
 process.on("unhandledRejection", (err) => {
