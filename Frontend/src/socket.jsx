@@ -175,20 +175,26 @@ const VideoChat = () => {
 
   const startVideoStream = async () => {
     try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("getUserMedia is not supported on this browser.");
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: true,
       });
+
       localStreamRef.current = stream;
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
       }
+
       return stream;
     } catch (error) {
       console.error("Error accessing media devices:", error);
       toast({
         title: "Media Error",
-        description: "Could not access camera or microphone.",
+        description: error.message || "Could not access camera or microphone.",
         status: "error",
         duration: 5000,
         isClosable: true,
