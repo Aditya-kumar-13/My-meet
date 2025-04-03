@@ -1,10 +1,7 @@
 const mongoose = require("mongoose");
 require("dotenv").config();
 
-const MONGO_URI =
-  process.env.NODE_ENV === "production"
-    ? process.env.MONGO_URI
-    : "mongodb://127.0.0.1:27017/my-meet";
+const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/my-meet";
 
 const dbOptions = {
   autoCreate: true,
