@@ -51,7 +51,7 @@ async function Login(req, res) {
 }
 async function getInfo(req, res) {
   try {
-    const user = await User.findById(req.user.id).select("-password"); // Exclude password
+    const user = await User.findById(req.user.id).select("-password");
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }

@@ -66,10 +66,10 @@ export default function Login() {
       );
 
       const response = await axios.post(`${API_BASE_URL}/login`, formData, {
-        withCredentials: true, // Ensure cookies are sent
+        withCredentials: true,
       });
       if (response.data.token) {
-        localStorage.setItem("token", response.data.token); // Store token in localStorage
+        localStorage.setItem("token", response.data.token);
       } else {
         console.error("No token received from backend.");
       }

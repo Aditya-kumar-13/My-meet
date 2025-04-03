@@ -10,10 +10,7 @@ const dotenv = require("dotenv");
 dotenv.config();
 connectDB();
 
-const allowedOrigins = [
-  "http://localhost:5173",
-  "https://my-meet-nine.vercel.app",
-];
+const allowedOrigins = ["http://localhost:5173"];
 
 app.use(
   cors({

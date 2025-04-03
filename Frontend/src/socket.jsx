@@ -41,11 +41,10 @@ const VideoChat = () => {
     const pc = peerConnections.current;
 
     socket.on("user-joined", async (userId) => {
-      if (userId === socket.id) return; // Ignore self
+      if (userId === socket.id) return;
       if (!pc[userId]) {
         pc[userId] = createPeerConnection(userId);
       }
-      // Only initiate offer if local socket.id is lexicographically smaller
       if (socket.id < userId && pc[userId].signalingState === "stable") {
         try {
           const offer = await pc[userId].createOffer();
@@ -64,11 +63,10 @@ const VideoChat = () => {
 
     socket.on("existing-users", async (users) => {
       for (const userId of users) {
-        if (userId === socket.id) continue; // Skip self
+        if (userId === socket.id) continue;
         if (!pc[userId]) {
           pc[userId] = createPeerConnection(userId);
         }
-        // Only initiate offer if local socket.id is smaller
         if (socket.id < userId && pc[userId].signalingState === "stable") {
           try {
             const offer = await pc[userId].createOffer();
@@ -87,7 +85,7 @@ const VideoChat = () => {
     });
 
     socket.on("offer", async ({ sender, offer, target }) => {
-      if (target !== socket.id) return; // Ignore if not targeted
+      if (target !== socket.id) return;
       if (!pc[sender]) {
         pc[sender] = createPeerConnection(sender);
       }
@@ -115,7 +113,7 @@ const VideoChat = () => {
     });
 
     socket.on("answer", async ({ sender, answer, target }) => {
-      if (target !== socket.id) return; // Ignore if not targeted
+      if (target !== socket.id) return;
       if (pc[sender]) {
         try {
           const currentState = pc[sender].signalingState;
@@ -135,7 +133,7 @@ const VideoChat = () => {
     });
 
     socket.on("ice-candidate", async ({ sender, candidate, target }) => {
-      if (target !== socket.id) return; // Ignore if not targeted
+      if (target !== socket.id) return;
       if (pc[sender]) {
         try {
           if (pc[sender].remoteDescription) {
