@@ -14,7 +14,7 @@ const allowedOrigins = ["http://localhost:5173", "https://165.232.151.23"];
 
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: "*",
     credentials: true,
   })
 );
@@ -27,7 +27,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
+    origin: "*",
     methods: ["GET", "POST"],
     credentials: true,
   },
