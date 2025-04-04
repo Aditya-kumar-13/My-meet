@@ -17,7 +17,7 @@ import io from "socket.io-client";
 import { v4 as uuidv4 } from "uuid";
 
 const url =
-  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ||
+  import.meta.env.VITE_SOCKET_URL?.replace(/\/$/, "") ||
   "http://localhost:5000";
 
 const socket = io(url, {
