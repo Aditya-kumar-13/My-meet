@@ -25,7 +25,6 @@ const socket = io(url, {
   reconnection: true,
   reconnectionAttempts: 10,
   reconnectionDelay: 1000,
-  withCredentials: true,
 });
 
 const VideoChat = () => {
