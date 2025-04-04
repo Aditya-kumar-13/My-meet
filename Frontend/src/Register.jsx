@@ -66,7 +66,9 @@ export default function SignupForm() {
     }
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/signup`, formData);
+      const response = await axios.post(`${API_BASE_URL}/signup`, formData, {
+        withCredentials: true,
+      });
       setLoading(false);
       toast({
         title: "Signup Successful",

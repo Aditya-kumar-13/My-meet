@@ -10,11 +10,12 @@ const dotenv = require("dotenv");
 dotenv.config();
 connectDB();
 
-const allowedOrigins = ["http://localhost:5173", "https://165.232.151.23"];
+const allowedOrigins = ["http://localhost:5173", "https://146.190.139.155"];
 
 app.use(
   cors({
-    origin: "*",
+    origin: allowedOrigins,
+    credentials: true,
   })
 );
 
@@ -26,8 +27,9 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
+    credentials: true,
   },
   transports: ["websocket", "polling"],
 });
