@@ -65,9 +65,7 @@ export default function Login() {
         ""
       );
 
-      const response = await axios.post(`${API_BASE_URL}/login`, formData, {
-        withCredentials: true,
-      });
+      const response = await axios.post(`${API_BASE_URL}/login`, formData, {});
       if (response.data.token) {
         localStorage.setItem("token", response.data.token);
       } else {
