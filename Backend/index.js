@@ -10,7 +10,10 @@ const dotenv = require("dotenv");
 dotenv.config();
 connectDB();
 
-const allowedOrigins = ["*"];
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://my-meet-tan.vercel.app",
+];
 
 app.use(
   cors({
