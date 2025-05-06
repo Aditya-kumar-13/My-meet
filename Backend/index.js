@@ -10,7 +10,7 @@ const dotenv = require("dotenv");
 dotenv.config();
 connectDB();
 
-const allowedOrigins = ["http://localhost:5173", "https://146.190.139.155"];
+const allowedOrigins = ["*"];
 
 app.use(
   cors({
