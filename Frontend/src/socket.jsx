@@ -16,9 +16,7 @@ import {
 import io from "socket.io-client";
 import { v4 as uuidv4 } from "uuid";
 
-const url =
-  import.meta.env.VITE_SOCKET_URL?.replace(/\/$/, "") ||
-  "http://localhost:5000";
+const url = import.meta.env.VITE_SOCKET_URL?.replace(/\/$/, "");
 
 const socket = io(url, {
   transports: ["websocket"],
